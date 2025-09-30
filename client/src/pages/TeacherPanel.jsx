@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom';
 import io from 'socket.io-client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 import { API_URL, SOCKET_URL, CLIENT_URL } from '../config';
+import QuestionBankModal from '../components/QuestionBankModal';
+import LeaderboardModal from '../components/LeaderboardModal';
+import { downloadReportAsMarkdown } from '../utils/questionBank';
 
 const socket = io(SOCKET_URL);
 
@@ -28,6 +31,9 @@ function TeacherPanel() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [showReport, setShowReport] = useState(false);
   const [report, setReport] = useState(null);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [quizMode, setQuizMode] = useState(false);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
 
   useEffect(() => {
     loadSession();
@@ -184,9 +190,63 @@ function TeacherPanel() {
       if (data.success) {
         setResults(data.results);
         setCurrentQuestion(null);
+        
+        // Quiz modunda ve son soru ise
+        if (quizMode && currentQuizIndex >= session.questions.length - 1) {
+          // Quiz bitti, leaderboard göster
+          setTimeout(() => {
+            loadLeaderboard();
+            setQuizMode(false);
+            setCurrentQuizIndex(0);
+          }, 3000);
+        }
       }
     } catch (error) {
       console.error('Soru sonlandırılamadı:', error);
+    }
+  };
+  
+  const startQuizMode = async () => {
+    if (session.questions.length === 0) {
+      alert('Önce soru eklemelisiniz!');
+      return;
+    }
+    
+    setQuizMode(true);
+    setCurrentQuizIndex(0);
+    setResults(null);
+    
+    // İlk soruyu başlat
+    await startQuestion(session.questions[0].id);
+  };
+  
+  const nextQuestion = async () => {
+    const nextIndex = currentQuizIndex + 1;
+    
+    if (nextIndex >= session.questions.length) {
+      alert('Tüm sorular bitti!');
+      return;
+    }
+    
+    setCurrentQuizIndex(nextIndex);
+    setResults(null);
+    await startQuestion(session.questions[nextIndex].id);
+  };
+  
+  const loadQuestionBank = (questions) => {
+    setSession(prev => ({
+      ...prev,
+      questions: questions
+    }));
+  };
+  
+  const handleDownloadReport = async () => {
+    if (!report) {
+      await loadReport();
+    }
+    
+    if (report) {
+      downloadReportAsMarkdown(report);
     }
   };
 
@@ -227,6 +287,38 @@ function TeacherPanel() {
                 👥 {participants.length} katılımcı
               </p>
             </div>
+          </div>
+          
+          {/* Quiz Kontrol Butonları */}
+          <div className="mt-4 pt-4 border-t flex gap-3 flex-wrap">
+            <button
+              onClick={() => setShowQuestionBank(true)}
+              className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700"
+            >
+              📚 Soru Bankası
+            </button>
+            
+            {!quizMode && session.questions.length > 0 && (
+              <button
+                onClick={startQuizMode}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700"
+              >
+                🚀 Quiz'i Başlat ({session.questions.length} soru)
+              </button>
+            )}
+            
+            {quizMode && (
+              <div className="bg-green-100 text-green-800 px-6 py-3 rounded-lg font-bold">
+                Quiz Aktif: Soru {currentQuizIndex + 1} / {session.questions.length}
+              </div>
+            )}
+            
+            <button
+              onClick={handleDownloadReport}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+            >
+              📄 Rapor İndir
+            </button>
           </div>
         </div>
 
@@ -321,9 +413,21 @@ function TeacherPanel() {
             {/* Sonuçlar */}
             {results && (
               <div className="card">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">
-                  Sonuçlar ({results.totalResponses} cevap)
-                </h3>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-bold text-gray-800">
+                    Sonuçlar ({results.totalResponses} cevap)
+                  </h3>
+                  
+                  {quizMode && currentQuizIndex < session.questions.length - 1 && (
+                    <button
+                      onClick={nextQuestion}
+                      className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transform hover:scale-105 transition"
+                    >
+                      ➡️ Sonraki Soru ({currentQuizIndex + 2}/{session.questions.length})
+                    </button>
+                  )}
+                </div>
+                
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={getChartData()}>
                     <CartesianGrid strokeDasharray="3 3" />
@@ -338,6 +442,14 @@ function TeacherPanel() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                
+                {results.correctAnswer && (
+                  <div className="mt-4 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+                    <p className="text-green-800 font-bold">
+                      ✓ Doğru Cevap: {results.correctAnswer}
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -448,6 +560,23 @@ function TeacherPanel() {
           </div>
         </div>
       </div>
+      
+      {/* Modals */}
+      {showQuestionBank && (
+        <QuestionBankModal
+          questions={session.questions}
+          onLoad={loadQuestionBank}
+          onClose={() => setShowQuestionBank(false)}
+        />
+      )}
+      
+      {showLeaderboard && leaderboard.length > 0 && (
+        <LeaderboardModal
+          leaderboard={leaderboard}
+          onClose={() => setShowLeaderboard(false)}
+          onDownloadReport={handleDownloadReport}
+        />
+      )}
     </div>
   );
 }
