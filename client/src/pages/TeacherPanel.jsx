@@ -230,14 +230,9 @@ function TeacherPanel() {
       });
 
       if (response.ok) {
-        // Quiz modunu kapat ve sonuçları göster
+        // Quiz modunu kapat (artık sonuç gösteriliyor)
         setQuizMode(false);
         setCurrentQuizIndex(0);
-
-        // Kısa süre sonra leaderboard'ı yükle
-        setTimeout(() => {
-          loadLeaderboard();
-        }, 1000);
 
         alert('✅ Quiz sonuçları tüm öğrencilere gönderildi!');
       } else {
@@ -478,6 +473,15 @@ function TeacherPanel() {
               <div className="bg-green-100 text-green-800 px-6 py-3 rounded-lg font-bold">
                 Quiz Aktif: Soru {currentQuizIndex + 1} / {session.questions.length}
               </div>
+            )}
+
+            {!quizMode && session.questions.length > 0 && (
+              <button
+                onClick={loadLeaderboard}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transform hover:scale-105 transition"
+              >
+                📊 Leaderboard'ı Göster
+              </button>
             )}
             
             <button
