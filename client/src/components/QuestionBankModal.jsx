@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { getQuestionBanks, saveQuestionBank, deleteQuestionBank, exportQuestionBank } from '../utils/questionBank';
+import { useState, useRef } from 'react';
+import { getQuestionBanks, saveQuestionBank, deleteQuestionBank, exportQuestionBank, importQuestionBank } from '../utils/questionBank';
 
 function QuestionBankModal({ questions, onLoad, onClose }) {
   const [banks, setBanks] = useState(getQuestionBanks());
   const [bankName, setBankName] = useState('');
   const [showSave, setShowSave] = useState(false);
+  const fileInputRef = useRef(null);
 
   const handleSave = () => {
     if (!bankName.trim()) {
@@ -33,6 +34,26 @@ function QuestionBankModal({ questions, onLoad, onClose }) {
     }
   };
 
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const result = await importQuestionBank(file);
+      if (result.success) {
+        setBanks(getQuestionBanks());
+        alert(`✅ "${result.bank.name}" başarıyla içe aktarıldı! (${result.bank.questionCount} soru)`);
+      }
+    } catch (error) {
+      alert('❌ Dosya içe aktarılamadı: ' + error.error);
+    }
+
+    // Input'u temizle
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
@@ -42,12 +63,12 @@ function QuestionBankModal({ questions, onLoad, onClose }) {
         </div>
 
         {/* Kaydet */}
-        <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+        <div className="mb-4 p-4 bg-blue-50 rounded-lg">
           <button
             onClick={() => setShowSave(!showSave)}
             className="btn-primary w-full"
           >
-            {showSave ? 'İptal' : `Mevcut Soruları Kaydet (${questions.length} soru)`}
+            {showSave ? 'İptal' : `💾 Mevcut Soruları Kaydet (${questions.length} soru)`}
           </button>
           
           {showSave && (
@@ -62,6 +83,24 @@ function QuestionBankModal({ questions, onLoad, onClose }) {
               <button onClick={handleSave} className="btn-primary">Kaydet</button>
             </div>
           )}
+        </div>
+
+        {/* Import */}
+        <div className="mb-6 p-4 bg-green-50 rounded-lg border-2 border-green-200">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImport}
+            className="hidden"
+            id="file-import"
+          />
+          <label htmlFor="file-import" className="btn-primary w-full bg-green-600 hover:bg-green-700 cursor-pointer text-center block">
+            📥 JSON Dosyasından İçe Aktar
+          </label>
+          <p className="text-xs text-gray-600 mt-2 text-center">
+            Daha önce export ettiğiniz .json dosyasını yükleyin
+          </p>
         </div>
 
         {/* Kayıtlı Setler */}
