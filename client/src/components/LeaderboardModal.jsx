@@ -29,8 +29,9 @@ function LeaderboardModal({ leaderboard, onClose, onDownloadReport }) {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-4xl font-black">%{student.percentage}</p>
-                    <p className="text-white/80">Başarı</p>
+                    <p className="text-5xl font-black">⚡{student.totalPoints || 0}</p>
+                    <p className="text-white/80 text-sm">Puan</p>
+                    <p className="text-2xl font-bold mt-1">%{student.percentage}</p>
                   </div>
                 </div>
               </div>

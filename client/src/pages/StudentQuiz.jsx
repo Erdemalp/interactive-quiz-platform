@@ -156,6 +156,19 @@ function StudentQuiz() {
           <div className="card mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <h2 className="text-2xl font-bold mb-6 text-center">📊 Senin Performansın</h2>
             
+            {/* Toplam Puan - Büyük Gösterim */}
+            <div className="bg-white/30 rounded-2xl p-6 text-center backdrop-blur mb-6">
+              <div className="text-6xl font-black mb-2">⚡ {myScore.totalPoints}</div>
+              <div className="text-xl font-bold">TOPLAM PUAN</div>
+              <div className="text-sm opacity-90 mt-2">
+                {myScore.correctAnswers > 0 && myScore.totalPoints > myScore.correctAnswers && (
+                  <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full font-bold">
+                    🚀 Hızlı Cevap Bonusu Aldın!
+                  </span>
+                )}
+              </div>
+            </div>
+            
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
                 <div className="text-4xl font-black mb-2">{myScore.correctAnswers}</div>
@@ -222,8 +235,9 @@ function StudentQuiz() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-4xl font-black">%{player.percentage}</div>
-                        <div className="text-sm opacity-90">Başarı</div>
+                        <div className="text-5xl font-black">⚡{player.totalPoints || 0}</div>
+                        <div className="text-sm opacity-90">Puan</div>
+                        <div className="text-lg mt-1">%{player.percentage}</div>
                       </div>
                     </div>
                   </div>

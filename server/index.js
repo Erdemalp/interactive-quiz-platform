@@ -29,7 +29,8 @@ app.use(express.json());
 // Oturum veritabanı (gerçek uygulamada MongoDB/PostgreSQL kullanılabilir)
 const sessions = new Map();
 const participants = new Map();
-const participantScores = new Map(); // { sessionCode: { participantId: { name, correctAnswers, totalAnswered } } }
+const participantScores = new Map(); // { sessionCode: { participantId: { name, correctAnswers, totalAnswered, totalPoints } } }
+const questionStartTimes = new Map(); // { sessionCode: { questionId: startTime } }
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -170,8 +171,15 @@ app.post('/api/session/:code/start-question/:questionId', (req, res) => {
   
   session.currentQuestionIndex = questionIndex;
   session.questions[questionIndex].responses = [];
-  session.questions[questionIndex].startedAt = new Date();
+  const startTime = new Date();
+  session.questions[questionIndex].startedAt = startTime;
   sessions.set(code, session);
+  
+  // Başlangıç zamanını kaydet (bonus hesaplama için)
+  if (!questionStartTimes.has(code)) {
+    questionStartTimes.set(code, new Map());
+  }
+  questionStartTimes.get(code).set(questionId, startTime);
   
   // Katılımcılara soruyu gönder (DOĞRU CEVAP GÖNDERMEYİN!)
   const questionToSend = {
@@ -214,18 +222,19 @@ app.post('/api/session/:code/end-question', (req, res) => {
     const sessionScores = participantScores.get(code);
     
     if (sessionScores) {
-      // Leaderboard hesapla
+      // Leaderboard hesapla (PUANA GÖRE SIRALA!)
       const leaderboard = Array.from(sessionScores.values())
         .map(score => ({
           name: score.name,
           correctAnswers: score.correctAnswers,
           totalAnswered: score.totalAnswered,
           wrongAnswers: score.totalAnswered - score.correctAnswers,
+          totalPoints: score.totalPoints || 0,
           percentage: score.totalAnswered > 0 
             ? Math.round((score.correctAnswers / score.totalAnswered) * 100) 
             : 0
         }))
-        .sort((a, b) => b.correctAnswers - a.correctAnswers);
+        .sort((a, b) => b.totalPoints - a.totalPoints); // Puana göre sıralama
       
       // Her öğrenciye kendi skoru + leaderboard gönder
       session.participants.forEach(participant => {
@@ -237,6 +246,7 @@ app.post('/api/session/:code/end-question', (req, res) => {
               correctAnswers: playerScore.correctAnswers,
               wrongAnswers: playerScore.totalAnswered - playerScore.correctAnswers,
               totalAnswered: playerScore.totalAnswered,
+              totalPoints: playerScore.totalPoints || 0,
               percentage: playerScore.totalAnswered > 0 
                 ? Math.round((playerScore.correctAnswers / playerScore.totalAnswered) * 100) 
                 : 0
@@ -261,17 +271,18 @@ app.get('/api/session/:code/leaderboard', (req, res) => {
     return res.json({ success: true, leaderboard: [] });
   }
   
-  // Skorları diziye çevir ve sırala
+  // Skorları diziye çevir ve sırala (PUANA GÖRE!)
   const leaderboard = Array.from(sessionScores.values())
     .map(score => ({
       name: score.name,
       correctAnswers: score.correctAnswers,
       totalAnswered: score.totalAnswered,
+      totalPoints: score.totalPoints || 0,
       percentage: score.totalAnswered > 0 
         ? Math.round((score.correctAnswers / score.totalAnswered) * 100) 
         : 0
     }))
-    .sort((a, b) => b.correctAnswers - a.correctAnswers)
+    .sort((a, b) => b.totalPoints - a.totalPoints) // Puana göre sıralama
     .slice(0, 3); // İlk 3
   
   res.json({ success: true, leaderboard });
@@ -387,6 +398,7 @@ io.on('connection', (socket) => {
       name: studentName,
       correctAnswers: 0,
       totalAnswered: 0,
+      totalPoints: 0,
       answers: []
     });
     
@@ -464,8 +476,29 @@ io.on('connection', (socket) => {
         score.totalAnswered++;
         score.answers.push(questionId);
         
+        let points = 0;
         if (isCorrect) {
           score.correctAnswers++;
+          
+          // Hızlı cevap bonusu hesapla
+          const startTimesForSession = questionStartTimes.get(sessionCode);
+          if (startTimesForSession && startTimesForSession.has(questionId)) {
+            const startTime = startTimesForSession.get(questionId);
+            const elapsedSeconds = Math.floor((new Date() - startTime) / 1000);
+            const timeLimit = question.timeLimit || 20;
+            
+            // İlk yarı (ilk 10 saniye) = 2 puan, ikinci yarı (son 10 saniye) = 1 puan
+            const halfTime = Math.floor(timeLimit / 2);
+            if (elapsedSeconds <= halfTime) {
+              points = 2; // Hızlı bonus!
+            } else {
+              points = 1; // Normal puan
+            }
+          } else {
+            points = 1; // Başlangıç zamanı bulunamazsa normal puan
+          }
+          
+          score.totalPoints += points;
         }
         
         sessionScores.set(socket.id, score);
