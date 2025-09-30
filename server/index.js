@@ -155,6 +155,57 @@ app.post('/api/session/:code/question', (req, res) => {
   res.json({ success: true, question: newQuestion });
 });
 
+// Soruyu güncelle
+app.put('/api/session/:code/question/:questionId', (req, res) => {
+  const { code, questionId } = req.params;
+  const { question, options, correctAnswer, timeLimit } = req.body;
+  const session = sessions.get(code);
+  
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Oturum bulunamadı' });
+  }
+  
+  const questionIndex = session.questions.findIndex(q => q.id === questionId);
+  if (questionIndex === -1) {
+    return res.status(404).json({ success: false, message: 'Soru bulunamadı' });
+  }
+  
+  // Soruyu güncelle (ID ve responses'ları koru)
+  const existingQuestion = session.questions[questionIndex];
+  session.questions[questionIndex] = {
+    ...existingQuestion,
+    question: question || existingQuestion.question,
+    options: options || existingQuestion.options,
+    correctAnswer: correctAnswer !== undefined ? correctAnswer : existingQuestion.correctAnswer,
+    timeLimit: timeLimit !== undefined ? timeLimit : existingQuestion.timeLimit
+  };
+  
+  sessions.set(code, session);
+  
+  res.json({ success: true, question: session.questions[questionIndex] });
+});
+
+// Soruyu sil
+app.delete('/api/session/:code/question/:questionId', (req, res) => {
+  const { code, questionId } = req.params;
+  const session = sessions.get(code);
+  
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Oturum bulunamadı' });
+  }
+  
+  const questionIndex = session.questions.findIndex(q => q.id === questionId);
+  if (questionIndex === -1) {
+    return res.status(404).json({ success: false, message: 'Soru bulunamadı' });
+  }
+  
+  // Soruyu sil
+  session.questions.splice(questionIndex, 1);
+  sessions.set(code, session);
+  
+  res.json({ success: true, message: 'Soru silindi' });
+});
+
 // Soruyu başlat
 app.post('/api/session/:code/start-question/:questionId', (req, res) => {
   const { code, questionId } = req.params;

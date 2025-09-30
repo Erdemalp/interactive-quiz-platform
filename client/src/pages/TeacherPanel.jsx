@@ -18,6 +18,7 @@ function TeacherPanel() {
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [results, setResults] = useState(null);
   const [showAddQuestion, setShowAddQuestion] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
   
   // Yeni soru formu
   const [newQuestion, setNewQuestion] = useState({
@@ -114,8 +115,40 @@ function TeacherPanel() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/session/${sessionCode}/question`, {
-        method: 'POST',
+      if (editingQuestionId) {
+        // Düzenleme modu
+        await updateQuestion();
+      } else {
+        // Yeni soru ekleme
+        const response = await fetch(`${API_URL}/api/session/${sessionCode}/question`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...newQuestion,
+            options: validOptions
+          })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          setSession(prev => ({
+            ...prev,
+            questions: [...prev.questions, data.question]
+          }));
+          resetQuestionForm();
+        }
+      }
+    } catch (error) {
+      console.error('Soru eklenemedi:', error);
+    }
+  };
+  
+  const updateQuestion = async () => {
+    const validOptions = newQuestion.options.filter(opt => opt.trim());
+    
+    try {
+      const response = await fetch(`${API_URL}/api/session/${sessionCode}/question/${editingQuestionId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newQuestion,
@@ -127,20 +160,65 @@ function TeacherPanel() {
       if (data.success) {
         setSession(prev => ({
           ...prev,
-          questions: [...prev.questions, data.question]
+          questions: prev.questions.map(q => 
+            q.id === editingQuestionId ? data.question : q
+          )
         }));
-        setNewQuestion({
-          question: '',
-          type: 'multiple-choice',
-          options: ['', '', '', ''],
-          correctAnswer: '',
-          timeLimit: 20
-        });
-        setShowAddQuestion(false);
+        resetQuestionForm();
+        alert('✅ Soru güncellendi!');
       }
     } catch (error) {
-      console.error('Soru eklenemedi:', error);
+      console.error('Soru güncellenemedi:', error);
+      alert('❌ Soru güncellenemedi!');
     }
+  };
+  
+  const startEditing = (question) => {
+    setEditingQuestionId(question.id);
+    setNewQuestion({
+      question: question.question,
+      type: question.type,
+      options: [...question.options, '', '', '', ''].slice(0, 4), // En az 4 seçenek
+      correctAnswer: question.correctAnswer,
+      timeLimit: question.timeLimit || 20
+    });
+    setShowAddQuestion(true);
+  };
+  
+  const deleteQuestion = async (questionId) => {
+    if (!window.confirm('Bu soruyu silmek istediğinizden emin misiniz?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/api/session/${sessionCode}/question/${questionId}`, {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSession(prev => ({
+          ...prev,
+          questions: prev.questions.filter(q => q.id !== questionId)
+        }));
+        alert('✅ Soru silindi!');
+      }
+    } catch (error) {
+      console.error('Soru silinemedi:', error);
+      alert('❌ Soru silinemedi!');
+    }
+  };
+  
+  const resetQuestionForm = () => {
+    setNewQuestion({
+      question: '',
+      type: 'multiple-choice',
+      options: ['', '', '', ''],
+      correctAnswer: '',
+      timeLimit: 20
+    });
+    setShowAddQuestion(false);
+    setEditingQuestionId(null);
   };
   
   const loadLeaderboard = async () => {
@@ -526,9 +604,12 @@ function TeacherPanel() {
                 </button>
               </div>
 
-              {/* Soru Ekleme Formu */}
+              {/* Soru Ekleme/Düzenleme Formu */}
               {showAddQuestion && (
                 <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-bold text-lg mb-3">
+                    {editingQuestionId ? '✏️ Soruyu Düzenle' : '➕ Yeni Soru Ekle'}
+                  </h4>
                   <input
                     type="text"
                     placeholder="Soru metni"
@@ -572,10 +653,10 @@ function TeacherPanel() {
                   
                   <div className="flex gap-2">
                     <button onClick={addQuestion} className="btn-primary flex-1">
-                      Soruyu Ekle
+                      {editingQuestionId ? '✅ Güncelle' : '➕ Soruyu Ekle'}
                     </button>
                     <button
-                      onClick={() => setShowAddQuestion(false)}
+                      onClick={resetQuestionForm}
                       className="btn-secondary"
                     >
                       İptal
@@ -588,26 +669,55 @@ function TeacherPanel() {
               <div className="space-y-3">
                 {session.questions.map((q, idx) => (
                   <div key={q.id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-3">
                       <div className="flex-1">
                         <p className="font-semibold text-gray-800 mb-2">
                           {idx + 1}. {q.question}
                         </p>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 mb-2">
                           {q.options.map((opt, i) => (
-                            <span key={i} className="text-xs bg-white px-2 py-1 rounded">
+                            <span 
+                              key={i} 
+                              className={`text-xs px-2 py-1 rounded ${
+                                opt === q.correctAnswer 
+                                  ? 'bg-green-100 text-green-800 font-bold' 
+                                  : 'bg-white'
+                              }`}
+                            >
+                              {opt === q.correctAnswer && '✓ '}
                               {opt}
                             </span>
                           ))}
                         </div>
+                        <p className="text-xs text-gray-500">
+                          ⏱️ {q.timeLimit || 20} saniye
+                        </p>
                       </div>
-                      <button
-                        onClick={() => startQuestion(q.id)}
-                        disabled={currentQuestion?.id === q.id}
-                        className="btn-primary ml-4 disabled:opacity-50"
-                      >
-                        {currentQuestion?.id === q.id ? 'Aktif' : 'Başlat'}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEditing(q)}
+                          disabled={quizMode}
+                          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Soruyu Düzenle"
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => deleteQuestion(q.id)}
+                          disabled={quizMode}
+                          className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Soruyu Sil"
+                        >
+                          🗑️
+                        </button>
+                        <button
+                          onClick={() => startQuestion(q.id)}
+                          disabled={currentQuestion?.id === q.id}
+                          className="btn-primary disabled:opacity-50"
+                        >
+                          {currentQuestion?.id === q.id ? 'Aktif' : 'Başlat'}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
