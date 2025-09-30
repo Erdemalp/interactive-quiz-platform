@@ -348,30 +348,41 @@ function TeacherPanel() {
   };
   
   const startQuizMode = async () => {
+    console.log('🚀 Quiz Başlat butonuna tıklandı!');
+    console.log('Soru sayısı:', session.questions.length);
+
     if (session.questions.length === 0) {
       alert('Önce soru eklemelisiniz!');
       return;
     }
-    
+
+    console.log('✅ Quiz modu aktifleştiriliyor...');
     setQuizMode(true);
     setCurrentQuizIndex(0);
     setResults(null);
-    
+
+    console.log('🎯 İlk soru başlatılıyor...');
     // İlk soruyu başlat
     await startQuestion(session.questions[0].id);
+    console.log('✅ İlk soru başlatıldı!');
   };
   
   const nextQuestion = async () => {
     const nextIndex = currentQuizIndex + 1;
-    
+    console.log('➡️ Sonraki soru butonuna tıklandı!');
+    console.log('Mevcut index:', currentQuizIndex, 'Sonraki index:', nextIndex);
+
     if (nextIndex >= session.questions.length) {
+      console.log('❌ Tüm sorular bitti!');
       alert('Tüm sorular bitti!');
       return;
     }
-    
+
+    console.log('✅ Sonraki soruya geçiliyor...');
     setCurrentQuizIndex(nextIndex);
     setResults(null);
     await startQuestion(session.questions[nextIndex].id);
+    console.log('✅ Sonraki soru başlatıldı!');
   };
   
   const loadQuestionBank = async (questions) => {
@@ -618,6 +629,14 @@ function TeacherPanel() {
                     </div>
                     <div className="mt-2 text-xs text-blue-600">
                       <strong>Buton Görünür?:</strong> {quizMode && currentQuizIndex >= (session?.questions?.length || 0) - 1 ? '✅ Quiz Sonuçları Butonu Görünecek' : '❌ Henüz Son Soruda Değilsiniz'}
+                    </div>
+
+                    {/* Console durumu için ekstra bilgi */}
+                    <div className="mt-3 p-2 bg-gray-100 rounded text-xs">
+                      <div><strong>Debug Console:</strong></div>
+                      <div>• Browser Console'u açın (F12)</div>
+                      <div>• "🚀 Quiz Başlat butonuna tıklandı!" mesajını arayın</div>
+                      <div>• "✅ Quiz modu aktifleştiriliyor..." mesajını arayın</div>
                     </div>
                   </div>
                 </div>
