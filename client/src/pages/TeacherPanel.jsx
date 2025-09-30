@@ -21,8 +21,13 @@ function TeacherPanel() {
     type: 'multiple-choice',
     options: ['', '', '', ''],
     correctAnswer: '',
-    timeLimit: 30
+    timeLimit: 20
   });
+  
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [showReport, setShowReport] = useState(false);
+  const [report, setReport] = useState(null);
 
   useEffect(() => {
     loadSession();
@@ -94,6 +99,11 @@ function TeacherPanel() {
       alert('En az 2 seçenek girmelisiniz');
       return;
     }
+    
+    if (!newQuestion.correctAnswer || !validOptions.includes(newQuestion.correctAnswer)) {
+      alert('Lütfen doğru cevabı seçin');
+      return;
+    }
 
     try {
       const response = await fetch(`${API_URL}/api/session/${sessionCode}/question`, {
@@ -116,12 +126,38 @@ function TeacherPanel() {
           type: 'multiple-choice',
           options: ['', '', '', ''],
           correctAnswer: '',
-          timeLimit: 30
+          timeLimit: 20
         });
         setShowAddQuestion(false);
       }
     } catch (error) {
       console.error('Soru eklenemedi:', error);
+    }
+  };
+  
+  const loadLeaderboard = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/session/${sessionCode}/leaderboard`);
+      const data = await response.json();
+      if (data.success) {
+        setLeaderboard(data.leaderboard);
+        setShowLeaderboard(true);
+      }
+    } catch (error) {
+      console.error('Leaderboard yüklenemedi:', error);
+    }
+  };
+  
+  const loadReport = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/session/${sessionCode}/report`);
+      const data = await response.json();
+      if (data.success) {
+        setReport(data.report);
+        setShowReport(true);
+      }
+    } catch (error) {
+      console.error('Rapor yüklenemedi:', error);
     }
   };
 
