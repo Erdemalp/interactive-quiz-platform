@@ -313,6 +313,57 @@ app.post('/api/session/:code/end-question', (req, res) => {
   res.json({ success: true, results });
 });
 
+// Quiz sonuçlarını göster (öğretmen butonuna bastığında)
+app.post('/api/session/:code/show-results', (req, res) => {
+  const { code } = req.params;
+  const session = sessions.get(code);
+
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Oturum bulunamadı' });
+  }
+
+  const sessionScores = participantScores.get(code);
+
+  if (sessionScores) {
+    // Leaderboard hesapla (PUANA GÖRE SIRALA!)
+    const leaderboard = Array.from(sessionScores.values())
+      .map(score => ({
+        name: score.name,
+        correctAnswers: score.correctAnswers,
+        totalAnswered: score.totalAnswered,
+        wrongAnswers: score.totalAnswered - score.correctAnswers,
+        totalPoints: score.totalPoints || 0,
+        percentage: score.totalAnswered > 0
+          ? Math.round((score.correctAnswers / score.totalAnswered) * 100)
+          : 0
+      }))
+      .sort((a, b) => b.totalPoints - a.totalPoints); // Puana göre sıralama
+
+    // Her öğrenciye kendi skoru + leaderboard gönder
+    session.participants.forEach(participant => {
+      const playerScore = sessionScores.get(participant.id);
+      if (playerScore) {
+        io.to(participant.socketId).emit('quiz-ended', {
+          myScore: {
+            name: playerScore.name,
+            correctAnswers: playerScore.correctAnswers,
+            wrongAnswers: playerScore.totalAnswered - playerScore.correctAnswers,
+            totalAnswered: playerScore.totalAnswered,
+            totalPoints: playerScore.totalPoints || 0,
+            percentage: playerScore.totalAnswered > 0
+              ? Math.round((playerScore.correctAnswers / playerScore.totalAnswered) * 100)
+              : 0
+          },
+          leaderboard: leaderboard.slice(0, 3), // Top 3
+          totalQuestions: session.questions.length
+        });
+      }
+    });
+  }
+
+  res.json({ success: true, message: 'Quiz sonuçları gönderildi' });
+});
+
 // Leaderboard al
 app.get('/api/session/:code/leaderboard', (req, res) => {
   const { code } = req.params;

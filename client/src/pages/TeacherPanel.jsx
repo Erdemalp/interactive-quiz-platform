@@ -220,6 +220,34 @@ function TeacherPanel() {
     setShowAddQuestion(false);
     setEditingQuestionId(null);
   };
+
+  const showQuizResults = async () => {
+    try {
+      // Tüm öğrencilere quiz sonuçlarını gönder
+      const response = await fetch(`${API_URL}/api/session/${sessionCode}/show-results`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        // Quiz modunu kapat ve sonuçları göster
+        setQuizMode(false);
+        setCurrentQuizIndex(0);
+
+        // Kısa süre sonra leaderboard'ı yükle
+        setTimeout(() => {
+          loadLeaderboard();
+        }, 1000);
+
+        alert('✅ Quiz sonuçları tüm öğrencilere gönderildi!');
+      } else {
+        alert('❌ Quiz sonuçları gönderilemedi!');
+      }
+    } catch (error) {
+      console.error('Quiz sonuçları gösterilemedi:', error);
+      alert('❌ Quiz sonuçları gösterilemedi!');
+    }
+  };
   
   const loadLeaderboard = async () => {
     try {
@@ -563,6 +591,15 @@ function TeacherPanel() {
                       className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transform hover:scale-105 transition"
                     >
                       ➡️ Sonraki Soru ({currentQuizIndex + 2}/{session.questions.length})
+                    </button>
+                  )}
+
+                  {quizMode && currentQuizIndex >= session.questions.length - 1 && (
+                    <button
+                      onClick={showQuizResults}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transform hover:scale-105 transition animate-pulse"
+                    >
+                      🎉 Quiz Sonuçlarını Göster!
                     </button>
                   )}
                 </div>
