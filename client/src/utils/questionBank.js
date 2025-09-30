@@ -109,11 +109,11 @@ export const downloadReportAsMarkdown = (report) => {
   
   markdown += `---\n\n`;
   markdown += `## 🏆 Sıralama\n\n`;
-  markdown += `| Sıra | İsim | Doğru | Yanlış | Toplam | Başarı % |\n`;
-  markdown += `|------|------|-------|--------|--------|----------|\n`;
+  markdown += `| Sıra | İsim | Doğru | Yanlış | Puan | Başarı % |\n`;
+  markdown += `|------|------|-------|--------|------|----------|\n`;
   
   report.participants.forEach((p, idx) => {
-    markdown += `| ${idx + 1} | ${p.name} | ${p.correctAnswers} | ${p.wrongAnswers} | ${p.totalAnswered} | %${p.percentage} |\n`;
+    markdown += `| ${idx + 1} | ${p.name} | ${p.correctAnswers} | ${p.wrongAnswers} | ⚡${p.totalPoints || 0} | %${p.percentage} |\n`;
   });
   
   markdown += `\n---\n\n`;
@@ -124,7 +124,7 @@ export const downloadReportAsMarkdown = (report) => {
     markdown += `### ${emoji} ${p.name}\n\n`;
     markdown += `- **Doğru Cevaplar:** ${p.correctAnswers}  \n`;
     markdown += `- **Yanlış Cevaplar:** ${p.wrongAnswers}  \n`;
-    markdown += `- **Toplam:** ${p.totalAnswered}  \n`;
+    markdown += `- **Toplam Puan:** ⚡${p.totalPoints || 0}  \n`;
     markdown += `- **Başarı Oranı:** %${p.percentage}  \n\n`;
   });
   

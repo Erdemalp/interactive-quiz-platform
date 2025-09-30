@@ -264,8 +264,8 @@ app.post('/api/session/:code/end-question', (req, res) => {
   session.currentQuestionIndex = null;
   sessions.set(code, session);
   
-  // Sonuçları hesapla ve gönder
-  const results = calculateResults(currentQuestion);
+  // Sonuçları hesapla ve gönder (session bilgisini de gönder)
+  const results = calculateResults(currentQuestion, session);
   io.to(code).emit('question-ended', results);
   
   // Eğer son soruysa, quiz bitmiştir - öğrencilere skorlarını gönder
@@ -369,6 +369,7 @@ app.get('/api/session/:code/report', (req, res) => {
           correctAnswers: score.correctAnswers,
           totalAnswered: score.totalAnswered,
           wrongAnswers: score.totalAnswered - score.correctAnswers,
+          totalPoints: score.totalPoints || 0,
           percentage: score.totalAnswered > 0 
             ? Math.round((score.correctAnswers / score.totalAnswered) * 100) 
             : 0,
@@ -377,21 +378,34 @@ app.get('/api/session/:code/report', (req, res) => {
       }
     });
     
-    // Başarıya göre sırala
-    report.participants.sort((a, b) => b.correctAnswers - a.correctAnswers);
+    // Puana göre sırala
+    report.participants.sort((a, b) => b.totalPoints - a.totalPoints);
   }
   
   res.json({ success: true, report });
 });
 
-function calculateResults(question) {
+function calculateResults(question, session) {
   const results = {
     questionId: question.id,
     totalResponses: question.responses.length,
     breakdown: {},
     correctAnswer: question.correctAnswer, // Doğru cevap
-    percentages: {}
+    percentages: {},
+    notAnswered: [] // Cevap vermeyen öğrenciler
   };
+  
+  // Cevap vermeyen öğrencileri bul
+  if (session && session.participants) {
+    const answeredParticipantIds = question.responses.map(r => r.participantId);
+    const notAnsweredParticipants = session.participants.filter(
+      p => !answeredParticipantIds.includes(p.id)
+    );
+    results.notAnswered = notAnsweredParticipants.map(p => ({
+      id: p.id,
+      name: p.name
+    }));
+  }
   
   if (question.type === 'multiple-choice') {
     question.options.forEach(option => {
@@ -558,8 +572,8 @@ io.on('connection', (socket) => {
     
     socket.emit('answer-submitted', { success: true, isCorrect });
     
-    // Öğretmene anlık sonuçları gönder
-    const results = calculateResults(question);
+    // Öğretmene anlık sonuçları gönder (session bilgisini de gönder)
+    const results = calculateResults(question, session);
     io.to(`teacher-${sessionCode}`).emit('results-update', results);
     
     console.log(`Cevap alındı - ${participant.name}: ${answer} (${isCorrect ? 'Doğru' : 'Yanlış'})`);

@@ -589,6 +589,25 @@ function TeacherPanel() {
                     </p>
                   </div>
                 )}
+                
+                {/* Cevap Vermeyen Öğrenciler */}
+                {results.notAnswered && results.notAnswered.length > 0 && (
+                  <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                    <p className="text-yellow-900 font-bold mb-3">
+                      ⚠️ Cevap Vermeyen Öğrenciler ({results.notAnswered.length})
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {results.notAnswered.map((student, idx) => (
+                        <span 
+                          key={idx} 
+                          className="bg-yellow-200 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold"
+                        >
+                          {student.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
