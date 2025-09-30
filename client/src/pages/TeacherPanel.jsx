@@ -233,11 +233,25 @@ function TeacherPanel() {
     await startQuestion(session.questions[nextIndex].id);
   };
   
-  const loadQuestionBank = (questions) => {
-    setSession(prev => ({
-      ...prev,
-      questions: questions
-    }));
+  const loadQuestionBank = async (questions) => {
+    // Önce tüm soruları backend'e gönder
+    try {
+      for (const question of questions) {
+        await fetch(`${API_URL}/api/session/${sessionCode}/question`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(question)
+        });
+      }
+      
+      // Sonra session'ı yeniden yükle
+      await loadSession();
+      
+      alert(`✅ ${questions.length} soru başarıyla yüklendi!`);
+    } catch (error) {
+      console.error('Sorular yüklenirken hata:', error);
+      alert('❌ Sorular yüklenirken bir hata oluştu!');
+    }
   };
   
   const handleDownloadReport = async () => {

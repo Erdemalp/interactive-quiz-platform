@@ -78,10 +78,9 @@ function QuestionBankModal({ questions, onLoad, onClose }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      onLoad(bank.questions);
-                      alert('Sorular yüklendi!');
-                      onClose();
+                    onClick={async () => {
+                      onClose(); // Modal'ı hemen kapat
+                      await onLoad(bank.questions); // Soruları yükle (alert fonksiyon içinde)
                     }}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
                   >
