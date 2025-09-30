@@ -5,7 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { API_URL, SOCKET_URL, CLIENT_URL } from '../config';
 import QuestionBankModal from '../components/QuestionBankModal';
 import LeaderboardModal from '../components/LeaderboardModal';
-import { downloadReportAsMarkdown } from '../utils/questionBank';
+import QuizHistoryModal from '../components/QuizHistoryModal';
+import { downloadReportAsMarkdown, saveQuizToHistory } from '../utils/questionBank';
 
 const socket = io(SOCKET_URL);
 
@@ -32,6 +33,7 @@ function TeacherPanel() {
   const [showReport, setShowReport] = useState(false);
   const [report, setReport] = useState(null);
   const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [showQuizHistory, setShowQuizHistory] = useState(false);
   const [quizMode, setQuizMode] = useState(false);
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
 
@@ -148,9 +150,42 @@ function TeacherPanel() {
       if (data.success) {
         setLeaderboard(data.leaderboard);
         setShowLeaderboard(true);
+        
+        // Quiz'i geçmişe kaydet
+        await saveQuizToHistoryNow();
       }
     } catch (error) {
       console.error('Leaderboard yüklenemedi:', error);
+    }
+  };
+  
+  const saveQuizToHistoryNow = async () => {
+    try {
+      // Quiz raporunu al
+      const reportResponse = await fetch(`${API_URL}/api/session/${sessionCode}/report`);
+      const reportData = await reportResponse.json();
+      
+      if (reportData.success) {
+        const quizData = {
+          sessionCode: sessionCode,
+          title: session.title,
+          teacherName: session.teacherName,
+          totalQuestions: session.questions.length,
+          totalParticipants: session.participants.length,
+          participants: reportData.report.participants,
+          questions: session.questions,
+          leaderboard: reportData.report.participants
+            .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0))
+            .slice(0, 3)
+        };
+        
+        const result = saveQuizToHistory(quizData);
+        if (result.success) {
+          console.log('✅ Quiz geçmişe kaydedildi!');
+        }
+      }
+    } catch (error) {
+      console.error('Quiz geçmişe kaydedilemedi:', error);
     }
   };
   
@@ -315,6 +350,13 @@ function TeacherPanel() {
               className="bg-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-700"
             >
               📚 Soru Bankası
+            </button>
+            
+            <button
+              onClick={() => setShowQuizHistory(true)}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700"
+            >
+              📜 Quiz Geçmişi
             </button>
             
             {!quizMode && session.questions.length > 0 && (
@@ -594,6 +636,12 @@ function TeacherPanel() {
           leaderboard={leaderboard}
           onClose={() => setShowLeaderboard(false)}
           onDownloadReport={handleDownloadReport}
+        />
+      )}
+      
+      {showQuizHistory && (
+        <QuizHistoryModal
+          onClose={() => setShowQuizHistory(false)}
         />
       )}
     </div>
