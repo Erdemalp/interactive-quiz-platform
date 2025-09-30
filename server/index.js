@@ -66,19 +66,7 @@ app.post('/api/session/create', async (req, res) => {
   const { title, teacherName } = req.body;
   const sessionCode = nanoid(6).toUpperCase();
   
-  const session = {
-    code: sessionCode,
-    title: title || 'Yeni Quiz',
-    teacherName: teacherName || 'Öğretmen',
-    questions: [],
-    currentQuestionIndex: null,
-    participants: [],
-    createdAt: new Date()
-  };
-  
-  sessions.set(sessionCode, session);
-
-  // QR kod oluştur
+  // QR kod oluştur (önce)
   const joinUrl = `${CLIENT_URL}/join/${sessionCode}`;
   console.log('QR kod oluşturuluyor:', joinUrl);
 
@@ -100,12 +88,25 @@ app.post('/api/session/create', async (req, res) => {
     qrCode = joinUrl;
   }
 
+  const session = {
+    code: sessionCode,
+    title: title || 'Yeni Quiz',
+    teacherName: teacherName || 'Öğretmen',
+    questions: [],
+    currentQuestionIndex: null,
+    participants: [],
+    qrCode: qrCode,  // QR kod'u session'a ekle
+    createdAt: new Date()
+  };
+  
+  sessions.set(sessionCode, session);
+
   res.json({
     success: true,
     session: {
       code: sessionCode,
       title: session.title,
-      qrCode
+      qrCode: session.qrCode
     }
   });
 });

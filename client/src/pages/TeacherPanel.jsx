@@ -60,24 +60,20 @@ function TeacherPanel() {
         setSession(data.session);
         setParticipants(data.session.participants);
 
-        // QR kod URL'sini ayarla
-        const joinUrl = `${CLIENT_URL}/join/${sessionCode}`;
+        // QR kod'u session'dan al
         const qrCodeFromServer = data.session.qrCode;
 
         console.log('QR kod bilgisi:', {
           qrCodeFromServer,
-          joinUrl,
           startsWithData: qrCodeFromServer?.startsWith('data:image')
         });
 
-        setQrCode(qrCodeFromServer || joinUrl);
+        setQrCode(qrCodeFromServer);
 
         if (qrCodeFromServer && qrCodeFromServer.startsWith('data:image')) {
           console.log('✅ QR kod başarıyla yüklendi');
-        } else if (qrCodeFromServer) {
-          console.log('⚠️ QR kod URL olarak geldi, görüntü olarak gösterilecek');
         } else {
-          console.log('❌ QR kod bilgisi yok, URL gösterilecek');
+          console.log('⚠️ QR kod düzgün yüklenmedi');
         }
       } else {
         console.error('Oturum bilgileri alınamadı:', data);
