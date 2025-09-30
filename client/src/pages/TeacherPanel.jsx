@@ -607,13 +607,18 @@ function TeacherPanel() {
                     </button>
                   )}
 
-                  {/* Debug bilgisi */}
-                  <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
-                    <div>Quiz Mode: {quizMode ? 'AKTİF' : 'KAPALI'}</div>
-                    <div>Current Index: {currentQuizIndex}</div>
-                    <div>Total Questions: {session?.questions?.length || 0}</div>
-                    <div>Son Soru?: {currentQuizIndex >= (session?.questions?.length || 0) - 1 ? 'EVET' : 'HAYIR'}</div>
-                    <div>Buton Gösterilmeli?: {quizMode && currentQuizIndex >= (session?.questions?.length || 0) - 1 ? 'EVET' : 'HAYIR'}</div>
+                  {/* Quiz Durum Debug */}
+                  <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                    <h4 className="font-bold text-sm text-blue-800 mb-2">🔍 Quiz Durumu:</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><strong>Quiz Modu:</strong> {quizMode ? '✅ AKTİF' : '❌ KAPALI'}</div>
+                      <div><strong>Mevcut Soru:</strong> {currentQuizIndex + 1}</div>
+                      <div><strong>Toplam Soru:</strong> {session?.questions?.length || 0}</div>
+                      <div><strong>Son Soru?:</strong> {currentQuizIndex >= (session?.questions?.length || 0) - 1 ? '✅ EVET' : '❌ HAYIR'}</div>
+                    </div>
+                    <div className="mt-2 text-xs text-blue-600">
+                      <strong>Buton Görünür?:</strong> {quizMode && currentQuizIndex >= (session?.questions?.length || 0) - 1 ? '✅ Quiz Sonuçları Butonu Görünecek' : '❌ Henüz Son Soruda Değilsiniz'}
+                    </div>
                   </div>
                 </div>
                 

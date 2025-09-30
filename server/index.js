@@ -627,7 +627,54 @@ io.on('connection', (socket) => {
     
     console.log(`Cevap alındı - ${participant.name}: ${answer} (${isCorrect ? 'Doğru' : 'Yanlış'})`);
   });
-  
+
+  // Öğrenci sonuçları manuel olarak istedi
+  socket.on('request-quiz-results', ({ sessionCode }) => {
+    const session = sessions.get(sessionCode);
+    const sessionScores = participantScores.get(sessionCode);
+
+    if (!session || !sessionScores) {
+      socket.emit('error', { message: 'Oturum bulunamadı' });
+      return;
+    }
+
+    const playerScore = sessionScores.get(socket.id);
+    if (!playerScore) {
+      socket.emit('error', { message: 'Skor bulunamadı' });
+      return;
+    }
+
+    // Leaderboard hesapla
+    const leaderboard = Array.from(sessionScores.values())
+      .map(score => ({
+        name: score.name,
+        correctAnswers: score.correctAnswers,
+        totalAnswered: score.totalAnswered,
+        wrongAnswers: score.totalAnswered - score.correctAnswers,
+        totalPoints: score.totalPoints || 0,
+        percentage: score.totalAnswered > 0
+          ? Math.round((score.correctAnswers / score.totalAnswered) * 100)
+          : 0
+      }))
+      .sort((a, b) => b.totalPoints - a.totalPoints);
+
+    // Öğrenciye sonuçları gönder
+    socket.emit('quiz-ended', {
+      myScore: {
+        name: playerScore.name,
+        correctAnswers: playerScore.correctAnswers,
+        wrongAnswers: playerScore.totalAnswered - playerScore.correctAnswers,
+        totalAnswered: playerScore.totalAnswered,
+        totalPoints: playerScore.totalPoints || 0,
+        percentage: playerScore.totalAnswered > 0
+          ? Math.round((playerScore.correctAnswers / playerScore.totalAnswered) * 100)
+          : 0
+      },
+      leaderboard: leaderboard.slice(0, 3),
+      totalQuestions: session.questions.length
+    });
+  });
+
   // Bağlantı koptu
   socket.on('disconnect', () => {
     const participant = participants.get(socket.id);

@@ -419,7 +419,7 @@ function StudentQuiz() {
         )}
 
         {/* Bekleme Ekranı */}
-        {!currentQuestion && !results && (
+        {!currentQuestion && !results && !quizEnded && (
           <div className="card text-center">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-100 rounded-full mb-4">
               <svg className="w-10 h-10 text-blue-600 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,11 +428,26 @@ function StudentQuiz() {
             </div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Hazır mısınız?</h2>
             <p className="text-gray-600">{waitingMessage}</p>
-            
+
             <div className="mt-8 flex justify-center gap-2">
               <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse"></div>
               <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
               <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+
+            {/* Manuel Sonuçları Göster Butonu */}
+            <div className="mt-6">
+              <button
+                onClick={() => {
+                  // Tüm sorular sorulmuşsa sonuçları manuel göster
+                  if (session && session.questions && session.questions.length > 0) {
+                    socket.emit('request-quiz-results', { sessionCode });
+                  }
+                }}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transform hover:scale-105 transition"
+              >
+                📊 Sonuçları Göster
+              </button>
             </div>
           </div>
         )}
