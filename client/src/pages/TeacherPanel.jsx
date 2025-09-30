@@ -608,11 +608,13 @@ function TeacherPanel() {
                   )}
 
                   {/* Debug bilgisi */}
-                  {quizMode && (
-                    <div className="text-xs text-gray-500 mt-2">
-                      Debug: Index {currentQuizIndex} / Total {session.questions.length} / Son soru? {currentQuizIndex >= session.questions.length - 1 ? 'EVET' : 'HAYIR'}
-                    </div>
-                  )}
+                  <div className="text-xs text-gray-500 mt-2 p-2 bg-gray-100 rounded">
+                    <div>Quiz Mode: {quizMode ? 'AKTİF' : 'KAPALI'}</div>
+                    <div>Current Index: {currentQuizIndex}</div>
+                    <div>Total Questions: {session?.questions?.length || 0}</div>
+                    <div>Son Soru?: {currentQuizIndex >= (session?.questions?.length || 0) - 1 ? 'EVET' : 'HAYIR'}</div>
+                    <div>Buton Gösterilmeli?: {quizMode && currentQuizIndex >= (session?.questions?.length || 0) - 1 ? 'EVET' : 'HAYIR'}</div>
+                  </div>
                 </div>
                 
                 <ResponsiveContainer width="100%" height={300}>
