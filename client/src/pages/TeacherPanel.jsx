@@ -379,6 +379,24 @@ function TeacherPanel() {
                       />
                     ))}
                   </div>
+                  
+                  {/* Doğru Cevap Seçimi */}
+                  <div className="mb-3">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Doğru Cevap (Zorunlu)
+                    </label>
+                    <select
+                      value={newQuestion.correctAnswer}
+                      onChange={(e) => setNewQuestion({ ...newQuestion, correctAnswer: e.target.value })}
+                      className="input-field"
+                    >
+                      <option value="">Doğru cevabı seçin...</option>
+                      {newQuestion.options.filter(opt => opt.trim()).map((opt, idx) => (
+                        <option key={idx} value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
                   <div className="flex gap-2">
                     <button onClick={addQuestion} className="btn-primary flex-1">
                       Soruyu Ekle

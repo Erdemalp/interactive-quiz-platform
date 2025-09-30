@@ -15,6 +15,8 @@ function StudentQuiz() {
   const [hasAnswered, setHasAnswered] = useState(false);
   const [results, setResults] = useState(null);
   const [waitingMessage, setWaitingMessage] = useState('Öğretmen bir soru başlatana kadar bekleyin...');
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [timerActive, setTimerActive] = useState(false);
 
   useEffect(() => {
     const name = localStorage.getItem('studentName');
@@ -39,11 +41,15 @@ function StudentQuiz() {
       setSelectedAnswer('');
       setHasAnswered(false);
       setResults(null);
+      setTimeLeft(question.timeLimit || 20);
+      setTimerActive(true);
     });
 
     socket.on('question-ended', (finalResults) => {
       setResults(finalResults);
       setCurrentQuestion(null);
+      setTimerActive(false);
+      setTimeLeft(null);
       setWaitingMessage('Sonuçlar gösteriliyor...');
       
       // 5 saniye sonra bekleme ekranına dön
@@ -53,8 +59,9 @@ function StudentQuiz() {
       }, 5000);
     });
 
-    socket.on('answer-submitted', () => {
+    socket.on('answer-submitted', ({ isCorrect }) => {
       setHasAnswered(true);
+      setTimerActive(false);
     });
 
     socket.on('error', ({ message }) => {
@@ -69,6 +76,27 @@ function StudentQuiz() {
       socket.off('error');
     };
   }, [sessionCode, navigate]);
+  
+  // Timer countdown
+  useEffect(() => {
+    if (!timerActive || timeLeft === null || timeLeft <= 0 || hasAnswered) return;
+    
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          setTimerActive(false);
+          // Süre bitti, otomatik submit
+          if (!hasAnswered && selectedAnswer) {
+            submitAnswer();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [timerActive, timeLeft, hasAnswered, selectedAnswer]);
 
   const submitAnswer = () => {
     if (!selectedAnswer || !currentQuestion) return;
@@ -117,12 +145,28 @@ function StudentQuiz() {
         {/* Aktif Soru */}
         {currentQuestion && !hasAnswered && (
           <div className="card">
+            {/* Timer */}
+            {timeLeft !== null && (
+              <div className={`text-center mb-6 p-4 rounded-xl ${
+                timeLeft <= 5 ? 'bg-red-100 animate-pulse' : 'bg-blue-100'
+              }`}>
+                <div className="flex items-center justify-center gap-3">
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                  </svg>
+                  <span className={`text-4xl font-black ${
+                    timeLeft <= 5 ? 'text-red-600' : 'text-blue-600'
+                  }`}>
+                    {timeLeft}
+                  </span>
+                  <span className="text-lg text-gray-600">saniye</span>
+                </div>
+              </div>
+            )}
+            
             <div className="mb-6">
               <div className="flex items-center gap-2 text-blue-600 mb-4">
-                <svg className="w-6 h-6 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                </svg>
-                <span className="font-semibold">Soru aktif - Cevabınızı seçin</span>
+                <span className="font-semibold">Cevabınızı seçin</span>
               </div>
               
               <h2 className="text-2xl font-bold text-gray-800 mb-6">
@@ -191,21 +235,39 @@ function StudentQuiz() {
             
             <div className="space-y-3">
               {Object.entries(results.breakdown).map(([option, count]) => {
-                const percentage = getResultPercentage(option);
+                const percentage = results.percentages?.[option] || getResultPercentage(option);
                 const isMyAnswer = selectedAnswer === option;
+                const isCorrect = option === results.correctAnswer;
                 
                 return (
                   <div key={option} className="relative">
                     <div className="flex justify-between items-center mb-1">
-                      <span className={`font-semibold ${isMyAnswer ? 'text-blue-600' : 'text-gray-700'}`}>
-                        {option} {isMyAnswer && '(Sizin cevabınız)'}
+                      <span className={`font-semibold flex items-center gap-2 ${
+                        isCorrect ? 'text-green-600' : isMyAnswer ? 'text-blue-600' : 'text-gray-700'
+                      }`}>
+                        {option}
+                        {isCorrect && (
+                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
+                            ✓ DOĞRU CEVAP
+                          </span>
+                        )}
+                        {isMyAnswer && !isCorrect && (
+                          <span className="text-sm">(Sizin cevabınız)</span>
+                        )}
+                        {isMyAnswer && isCorrect && (
+                          <span className="text-sm">(Sizin cevabınız - Doğru! 🎉)</span>
+                        )}
                       </span>
                       <span className="text-sm text-gray-600">{count} kişi ({percentage}%)</span>
                     </div>
                     <div className="h-10 bg-gray-200 rounded-lg overflow-hidden">
                       <div
                         className={`h-full flex items-center px-3 text-white font-semibold transition-all duration-500 ${
-                          isMyAnswer ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : 'bg-gray-400'
+                          isCorrect 
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                            : isMyAnswer 
+                              ? 'bg-gradient-to-r from-blue-600 to-indigo-600' 
+                              : 'bg-gray-400'
                         }`}
                         style={{ width: `${percentage}%` }}
                       >
