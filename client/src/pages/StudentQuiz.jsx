@@ -53,12 +53,9 @@ function StudentQuiz() {
       setTimerActive(false);
       setTimeLeft(null);
       setWaitingMessage('Sonuçlar gösteriliyor...');
-      
-      // 5 saniye sonra bekleme ekranına dön
-      setTimeout(() => {
-        setResults(null);
-        setWaitingMessage('Bir sonraki soru bekleniyor...');
-      }, 5000);
+
+      // Sonuçları göster, otomatik temizleme yok
+      // Öğretmen sonraki soruya geçene kadar burada kalacak
     });
 
     socket.on('answer-submitted', ({ isCorrect }) => {
@@ -72,6 +69,7 @@ function StudentQuiz() {
       setFinalStats({ myScore, leaderboard, totalQuestions });
       setCurrentQuestion(null);
       setResults(null);
+      setWaitingMessage('Quiz tamamlandı!');
     });
 
     socket.on('error', ({ message }) => {
