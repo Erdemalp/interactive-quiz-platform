@@ -17,6 +17,8 @@ function StudentQuiz() {
   const [waitingMessage, setWaitingMessage] = useState('Öğretmen bir soru başlatana kadar bekleyin...');
   const [timeLeft, setTimeLeft] = useState(null);
   const [timerActive, setTimerActive] = useState(false);
+  const [quizEnded, setQuizEnded] = useState(false);
+  const [finalStats, setFinalStats] = useState(null);
 
   useEffect(() => {
     const name = localStorage.getItem('studentName');
@@ -64,6 +66,14 @@ function StudentQuiz() {
       setTimerActive(false);
     });
 
+    socket.on('quiz-ended', ({ myScore, leaderboard, totalQuestions }) => {
+      console.log('Quiz bitti!', { myScore, leaderboard });
+      setQuizEnded(true);
+      setFinalStats({ myScore, leaderboard, totalQuestions });
+      setCurrentQuestion(null);
+      setResults(null);
+    });
+
     socket.on('error', ({ message }) => {
       alert(message);
     });
@@ -73,6 +83,7 @@ function StudentQuiz() {
       socket.off('question-started');
       socket.off('question-ended');
       socket.off('answer-submitted');
+      socket.off('quiz-ended');
       socket.off('error');
     };
   }, [sessionCode, navigate]);
@@ -120,6 +131,120 @@ function StudentQuiz() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-xl text-gray-600">Oturuma katılınıyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Quiz bitti - Final Sonuçlar Ekranı
+  if (quizEnded && finalStats) {
+    const { myScore, leaderboard } = finalStats;
+    const myRank = leaderboard.findIndex(p => p.name === myScore.name) + 1;
+    
+    return (
+      <div className="min-h-screen p-4 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
+        <div className="max-w-4xl mx-auto">
+          {/* Başlık */}
+          <div className="text-center mb-8 animate-fade-in">
+            <h1 className="text-5xl font-black mb-4">
+              🏆 Quiz Tamamlandı!
+            </h1>
+            <p className="text-xl text-gray-600">{session.title}</p>
+          </div>
+
+          {/* Kendi İstatistiklerin */}
+          <div className="card mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+            <h2 className="text-2xl font-bold mb-6 text-center">📊 Senin Performansın</h2>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
+                <div className="text-4xl font-black mb-2">{myScore.correctAnswers}</div>
+                <div className="text-sm opacity-90">Doğru</div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
+                <div className="text-4xl font-black mb-2">{myScore.wrongAnswers}</div>
+                <div className="text-sm opacity-90">Yanlış</div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
+                <div className="text-4xl font-black mb-2">{myScore.totalAnswered}</div>
+                <div className="text-sm opacity-90">Toplam</div>
+              </div>
+              <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
+                <div className="text-4xl font-black mb-2">%{myScore.percentage}</div>
+                <div className="text-sm opacity-90">Başarı</div>
+              </div>
+            </div>
+
+            {/* Başarı Mesajı */}
+            <div className="text-center p-4 bg-white/10 rounded-xl backdrop-blur">
+              <p className="text-2xl font-bold">
+                {myScore.percentage >= 80 ? '🌟 Muhteşem! Harika bir performans!' :
+                 myScore.percentage >= 60 ? '👏 Güzel! İyi bir sonuç aldın!' :
+                 myScore.percentage >= 40 ? '👍 Fena değil! Daha iyisini yapabilirsin!' :
+                 '💪 Çalışmaya devam et, başarırsın!'}
+              </p>
+              {myRank > 0 && myRank <= 3 && (
+                <p className="text-xl mt-2 animate-pulse">
+                  🎉 {myRank === 1 ? 'BİRİNCİ' : myRank === 2 ? 'İKİNCİ' : 'ÜÇÜNCÜ'} OLDUN!
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Leaderboard - Top 3 */}
+          <div className="card">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
+              🏅 En Başarılı 3 Öğrenci
+            </h2>
+            
+            <div className="space-y-4">
+              {leaderboard.map((player, idx) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const colors = [
+                  'bg-gradient-to-r from-yellow-400 to-orange-500',
+                  'bg-gradient-to-r from-gray-300 to-gray-400',
+                  'bg-gradient-to-r from-orange-400 to-amber-600'
+                ];
+                
+                return (
+                  <div 
+                    key={idx}
+                    className={`${colors[idx]} text-white rounded-2xl p-6 transform transition hover:scale-[1.02] shadow-lg`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="text-5xl">{medals[idx]}</div>
+                        <div>
+                          <p className="text-2xl font-black">{player.name}</p>
+                          <p className="text-sm opacity-90">
+                            {player.correctAnswers} doğru / {player.totalAnswered} soru
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-4xl font-black">%{player.percentage}</div>
+                        <div className="text-sm opacity-90">Başarı</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Çıkış Butonu */}
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => {
+                localStorage.removeItem('studentName');
+                localStorage.removeItem('sessionCode');
+                navigate('/');
+              }}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold text-lg hover:shadow-xl transform hover:scale-105 transition"
+            >
+              🏠 Ana Sayfaya Dön
+            </button>
+          </div>
         </div>
       </div>
     );

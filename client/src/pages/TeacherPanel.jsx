@@ -183,8 +183,13 @@ function TeacherPanel() {
 
   const endQuestion = async () => {
     try {
+      // Quiz modunda son soru mu kontrol et
+      const isLastQuestion = quizMode && currentQuizIndex >= session.questions.length - 1;
+      
       const response = await fetch(`${API_URL}/api/session/${sessionCode}/end-question`, {
-        method: 'POST'
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isLastQuestion })
       });
       const data = await response.json();
       if (data.success) {
@@ -192,7 +197,7 @@ function TeacherPanel() {
         setCurrentQuestion(null);
         
         // Quiz modunda ve son soru ise
-        if (quizMode && currentQuizIndex >= session.questions.length - 1) {
+        if (isLastQuestion) {
           // Quiz bitti, leaderboard göster
           setTimeout(() => {
             loadLeaderboard();
