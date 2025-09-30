@@ -550,11 +550,9 @@ io.on('connection', (socket) => {
           if (startTimesForSession && startTimesForSession.has(questionId)) {
             const startTime = startTimesForSession.get(questionId);
             const elapsedSeconds = Math.floor((new Date() - startTime) / 1000);
-            const timeLimit = question.timeLimit || 20;
-            
-            // İlk yarı (ilk 10 saniye) = 2 puan, ikinci yarı (son 10 saniye) = 1 puan
-            const halfTime = Math.floor(timeLimit / 2);
-            if (elapsedSeconds <= halfTime) {
+
+            // İlk 10 saniye = 2 puan, sonraki saniyeler = 1 puan
+            if (elapsedSeconds <= 10) {
               points = 2; // Hızlı bonus!
             } else {
               points = 1; // Normal puan
