@@ -29,6 +29,7 @@ app.use(express.json());
 // Oturum veritabanı (gerçek uygulamada MongoDB/PostgreSQL kullanılabilir)
 const sessions = new Map();
 const participants = new Map();
+const participantScores = new Map(); // { sessionCode: { participantId: { name, correctAnswers, totalAnswered } } }
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -138,9 +139,10 @@ app.post('/api/session/:code/question', (req, res) => {
     question,
     type: type || 'multiple-choice',
     options: options || [],
-    correctAnswer,
-    timeLimit: timeLimit || 30,
-    responses: []
+    correctAnswer: correctAnswer, // Doğru cevap
+    timeLimit: timeLimit || 20, // Varsayılan 20 saniye
+    responses: [],
+    startedAt: null
   };
   
   session.questions.push(newQuestion);
@@ -168,11 +170,21 @@ app.post('/api/session/:code/start-question/:questionId', (req, res) => {
   
   session.currentQuestionIndex = questionIndex;
   session.questions[questionIndex].responses = [];
+  session.questions[questionIndex].startedAt = new Date();
   sessions.set(code, session);
   
-  // Katılımcılara soruyu gönder
+  // Katılımcılara soruyu gönder (DOĞRU CEVAP GÖNDERMEYİN!)
+  const questionToSend = {
+    id: session.questions[questionIndex].id,
+    question: session.questions[questionIndex].question,
+    type: session.questions[questionIndex].type,
+    options: session.questions[questionIndex].options,
+    timeLimit: session.questions[questionIndex].timeLimit,
+    // correctAnswer GÖNDERMEYİN!
+  };
+  
   io.to(code).emit('question-started', {
-    question: session.questions[questionIndex],
+    question: questionToSend,
     index: questionIndex
   });
   
@@ -199,11 +211,83 @@ app.post('/api/session/:code/end-question', (req, res) => {
   res.json({ success: true, results });
 });
 
+// Leaderboard al
+app.get('/api/session/:code/leaderboard', (req, res) => {
+  const { code } = req.params;
+  const sessionScores = participantScores.get(code);
+  
+  if (!sessionScores) {
+    return res.json({ success: true, leaderboard: [] });
+  }
+  
+  // Skorları diziye çevir ve sırala
+  const leaderboard = Array.from(sessionScores.values())
+    .map(score => ({
+      name: score.name,
+      correctAnswers: score.correctAnswers,
+      totalAnswered: score.totalAnswered,
+      percentage: score.totalAnswered > 0 
+        ? Math.round((score.correctAnswers / score.totalAnswered) * 100) 
+        : 0
+    }))
+    .sort((a, b) => b.correctAnswers - a.correctAnswers)
+    .slice(0, 3); // İlk 3
+  
+  res.json({ success: true, leaderboard });
+});
+
+// Quiz raporu al
+app.get('/api/session/:code/report', (req, res) => {
+  const { code } = req.params;
+  const session = sessions.get(code);
+  const sessionScores = participantScores.get(code);
+  
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Oturum bulunamadı' });
+  }
+  
+  const report = {
+    sessionCode: code,
+    title: session.title,
+    teacherName: session.teacherName,
+    totalQuestions: session.questions.length,
+    totalParticipants: session.participants.length,
+    createdAt: session.createdAt,
+    participants: []
+  };
+  
+  // Her katılımcının detaylarını ekle
+  if (sessionScores) {
+    session.participants.forEach(participant => {
+      const score = sessionScores.get(participant.id);
+      if (score) {
+        report.participants.push({
+          name: score.name,
+          correctAnswers: score.correctAnswers,
+          totalAnswered: score.totalAnswered,
+          wrongAnswers: score.totalAnswered - score.correctAnswers,
+          percentage: score.totalAnswered > 0 
+            ? Math.round((score.correctAnswers / score.totalAnswered) * 100) 
+            : 0,
+          joinedAt: participant.joinedAt
+        });
+      }
+    });
+    
+    // Başarıya göre sırala
+    report.participants.sort((a, b) => b.correctAnswers - a.correctAnswers);
+  }
+  
+  res.json({ success: true, report });
+});
+
 function calculateResults(question) {
   const results = {
     questionId: question.id,
     totalResponses: question.responses.length,
-    breakdown: {}
+    breakdown: {},
+    correctAnswer: question.correctAnswer, // Doğru cevap
+    percentages: {}
   };
   
   if (question.type === 'multiple-choice') {
@@ -215,6 +299,14 @@ function calculateResults(question) {
       if (results.breakdown[response.answer] !== undefined) {
         results.breakdown[response.answer]++;
       }
+    });
+    
+    // Yüzdelikleri hesapla
+    question.options.forEach(option => {
+      const count = results.breakdown[option] || 0;
+      results.percentages[option] = results.totalResponses > 0 
+        ? Math.round((count / results.totalResponses) * 100) 
+        : 0;
     });
   }
   
@@ -245,6 +337,17 @@ io.on('connection', (socket) => {
     session.participants.push(participant);
     participants.set(socket.id, { sessionCode, name: studentName });
     sessions.set(sessionCode, session);
+    
+    // Skorlama sistemini başlat
+    if (!participantScores.has(sessionCode)) {
+      participantScores.set(sessionCode, new Map());
+    }
+    participantScores.get(sessionCode).set(socket.id, {
+      name: studentName,
+      correctAnswers: 0,
+      totalAnswered: 0,
+      answers: []
+    });
     
     socket.emit('joined-session', {
       session: {
@@ -288,11 +391,14 @@ io.on('connection', (socket) => {
     // Cevabı kaydet
     const existingResponseIndex = question.responses.findIndex(r => r.participantId === socket.id);
     
+    const isCorrect = answer === question.correctAnswer;
+    
     if (existingResponseIndex !== -1) {
       question.responses[existingResponseIndex] = {
         participantId: socket.id,
         participantName: participant.name,
         answer,
+        isCorrect,
         timestamp: new Date()
       };
     } else {
@@ -300,19 +406,38 @@ io.on('connection', (socket) => {
         participantId: socket.id,
         participantName: participant.name,
         answer,
+        isCorrect,
         timestamp: new Date()
       });
     }
     
     sessions.set(sessionCode, session);
     
-    socket.emit('answer-submitted', { success: true });
+    // Skorlamayı güncelle
+    const sessionScores = participantScores.get(sessionCode);
+    if (sessionScores && sessionScores.has(socket.id)) {
+      const score = sessionScores.get(socket.id);
+      
+      // Eğer bu soruyu daha önce cevaplamadıysa
+      if (!score.answers.includes(questionId)) {
+        score.totalAnswered++;
+        score.answers.push(questionId);
+        
+        if (isCorrect) {
+          score.correctAnswers++;
+        }
+        
+        sessionScores.set(socket.id, score);
+      }
+    }
+    
+    socket.emit('answer-submitted', { success: true, isCorrect });
     
     // Öğretmene anlık sonuçları gönder
     const results = calculateResults(question);
     io.to(`teacher-${sessionCode}`).emit('results-update', results);
     
-    console.log(`Cevap alındı - ${participant.name}: ${answer}`);
+    console.log(`Cevap alındı - ${participant.name}: ${answer} (${isCorrect ? 'Doğru' : 'Yanlış'})`);
   });
   
   // Bağlantı koptu
