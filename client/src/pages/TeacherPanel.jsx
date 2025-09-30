@@ -602,6 +602,13 @@ function TeacherPanel() {
                       🎉 Quiz Sonuçlarını Göster!
                     </button>
                   )}
+
+                  {/* Debug bilgisi */}
+                  {quizMode && (
+                    <div className="text-xs text-gray-500 mt-2">
+                      Debug: Index {currentQuizIndex} / Total {session.questions.length} / Son soru? {currentQuizIndex >= session.questions.length - 1 ? 'EVET' : 'HAYIR'}
+                    </div>
+                  )}
                 </div>
                 
                 <ResponsiveContainer width="100%" height={300}>
