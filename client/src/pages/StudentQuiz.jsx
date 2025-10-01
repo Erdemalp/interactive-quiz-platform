@@ -34,8 +34,8 @@ function StudentQuiz() {
     // Oturuma katıl
     socket.emit('join-session', { sessionCode, studentName: name });
 
-    socket.on('joined-session', ({ session }) => {
-      setSession(session);
+    socket.on('joined', ({ sessionCode, name }) => {
+      console.log('Oturuma başarıyla katılınıldı:', sessionCode);
     });
 
     socket.on('question-started', ({ question }) => {
@@ -58,10 +58,8 @@ function StudentQuiz() {
       // Öğretmen sonraki soruya geçene kadar burada kalacak
     });
 
-    socket.on('answer-submitted', ({ isCorrect }) => {
-      setHasAnswered(true);
-      setTimerActive(false);
-    });
+    // Cevap gönderildiğinde state'i manuel güncelle (backend'den onay gelmez)
+    // setHasAnswered(true) submit butonuna tıklanınca manuel setleniyor
 
     socket.on('quiz-ended', ({ myScore, leaderboard, totalQuestions }) => {
       console.log('Quiz bitti!', { myScore, leaderboard });
@@ -115,6 +113,10 @@ function StudentQuiz() {
       questionId: currentQuestion.id,
       answer: selectedAnswer
     });
+
+    // Cevabı gönderdikten sonra state'i güncelle
+    setHasAnswered(true);
+    setTimerActive(false);
   };
 
   const getResultPercentage = (option) => {
@@ -435,18 +437,15 @@ function StudentQuiz() {
               <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
 
-            {/* Manuel Sonuçları Göster Butonu */}
+            {/* Manuel Sonuçları Göster Butonu - Backend implementasyonu eksik */}
             <div className="mt-6">
               <button
                 onClick={() => {
-                  // Tüm sorular sorulmuşsa sonuçları manuel göster
-                  if (session && session.questions && session.questions.length > 0) {
-                    socket.emit('request-quiz-results', { sessionCode });
-                  }
+                  alert('Bu özellik henüz implementasyonda yok. Öğretmen "Quiz Sonuçlarını Göster" butonuna tıklayarak sonuçları gösterebilir.');
                 }}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transform hover:scale-105 transition"
+                className="bg-gray-400 text-white px-6 py-3 rounded-lg font-bold cursor-not-allowed"
               >
-                📊 Sonuçları Göster
+                📊 Sonuçları Göster (Yakında)
               </button>
             </div>
           </div>

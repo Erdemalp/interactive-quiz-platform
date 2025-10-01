@@ -238,7 +238,13 @@ app.post('/api/session/:code/show-results', (req, res) => {
       }))
       .sort((a, b) => b.totalPoints - a.totalPoints);
 
-    // Quiz-ended sadece öğretmen "Quiz Sonuçlarını Göster" butonuna bastığında gönderilecek
+    // Tüm öğrencilere quiz sonuçlarını gönder - her kullanıcı kendi skorunu alacak
+    io.to(code).emit('quiz-ended', {
+      leaderboard,
+      totalQuestions: session.questions.length
+    });
+
+    console.log(`Quiz sonuçları ${code} oturumundaki tüm öğrencilere gönderildi`);
   }
   res.json({ success: true, message: 'Quiz sonuçları gönderildi' });
 });
@@ -451,7 +457,41 @@ io.on('connection', (socket) => {
     
     console.log(`${participant.name} cevap verdi: ${answer} (${isCorrect ? 'Doğru' : 'Yanlış'}) - ${points} puan`);
   });
-  
+
+  // Quiz sonuçlarını manuel olarak istemek için
+  socket.on('request-quiz-results', ({ sessionCode }) => {
+    const session = sessions.get(sessionCode);
+    if (!session) {
+      socket.emit('error', { message: 'Oturum bulunamadı' });
+      return;
+    }
+
+    // Tüm öğrencilere quiz sonuçlarını gönder (mevcut show-results endpoint'ini kullan)
+    const sessionScores = participantScores.get(sessionCode);
+    if (sessionScores) {
+      const leaderboard = Array.from(sessionScores.values())
+        .map(score => ({
+          name: score.name,
+          correctAnswers: score.correctAnswers,
+          totalAnswered: score.totalAnswered,
+          wrongAnswers: score.totalAnswered - score.correctAnswers,
+          totalPoints: score.totalPoints || 0,
+          percentage: score.totalAnswered > 0
+            ? Math.round((score.correctAnswers / score.totalAnswered) * 100)
+            : 0
+        }))
+        .sort((a, b) => b.totalPoints - a.totalPoints);
+
+      // Tüm öğrencilere quiz sonuçlarını gönder
+      io.to(sessionCode).emit('quiz-ended', {
+        leaderboard,
+        totalQuestions: session.questions.length
+      });
+
+      console.log(`Quiz sonuçları ${sessionCode} oturumundaki tüm öğrencilere gönderildi`);
+    }
+  });
+
   // Bağlantı koptuğunda
   socket.on('disconnect', () => {
     console.log('Bağlantı koptu:', socket.id);

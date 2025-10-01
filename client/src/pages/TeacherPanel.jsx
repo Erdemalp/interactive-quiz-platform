@@ -40,6 +40,8 @@ function TeacherPanel() {
   const [showQuizHistory, setShowQuizHistory] = useState(false);
   const [quizMode, setQuizMode] = useState(false);
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [questionTimer, setQuestionTimer] = useState(null);
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(null);
 
   useEffect(() => {
     loadSession();
@@ -56,6 +58,13 @@ function TeacherPanel() {
     socket.on('question-ended', (finalResults) => {
       setResults(finalResults);
       setCurrentQuestion(null);
+
+      // Timer'ı temizle
+      setQuestionTimeLeft(null);
+      if (questionTimer) {
+        clearInterval(questionTimer);
+        setQuestionTimer(null);
+      }
     });
 
     return () => {
@@ -64,6 +73,31 @@ function TeacherPanel() {
       socket.off('question-ended');
     };
   }, [sessionCode]);
+
+  // Question timer effect (öğretmen için)
+  useEffect(() => {
+    if (!currentQuestion || questionTimeLeft === null || questionTimeLeft <= 0) {
+      if (questionTimer) {
+        clearInterval(questionTimer);
+        setQuestionTimer(null);
+      }
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setQuestionTimeLeft(prev => {
+        if (prev <= 1) {
+          setQuestionTimer(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    setQuestionTimer(timer);
+
+    return () => clearInterval(timer);
+  }, [currentQuestion, questionTimeLeft]);
 
   const loadSession = async () => {
     try {
@@ -311,13 +345,21 @@ function TeacherPanel() {
 
   const startQuestion = async (questionId) => {
     try {
-      await fetch(`${API_URL}/api/session/${sessionCode}/start-question/${questionId}`, {
-        method: 'POST'
+      // questionId'yi questionIndex'e çevir
+      const questionIndex = session.questions.findIndex(q => q.id === questionId);
+
+      await fetch(`${API_URL}/api/session/${sessionCode}/start-question`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionIndex })
       });
-      
+
       const question = session.questions.find(q => q.id === questionId);
       setCurrentQuestion(question);
       setResults(null);
+
+      // Timer'ı başlat
+      setQuestionTimeLeft(question.timeLimit || 20);
     } catch (error) {
       console.error('Soru başlatılamadı:', error);
     }
@@ -337,7 +379,14 @@ function TeacherPanel() {
       if (data.success) {
         setResults(data.results);
         setCurrentQuestion(null);
-        
+
+        // Timer'ı temizle
+        setQuestionTimeLeft(null);
+        if (questionTimer) {
+          clearInterval(questionTimer);
+          setQuestionTimer(null);
+        }
+
         // Quiz modunda ve son soru ise
         if (isLastQuestion) {
           // Quiz bitti, sadece quiz modunu kapat
@@ -584,6 +633,26 @@ function TeacherPanel() {
                     Soruyu Bitir
                   </button>
                 </div>
+
+                {/* Timer */}
+                {questionTimeLeft !== null && questionTimeLeft > 0 && (
+                  <div className={`text-center mb-6 p-4 rounded-xl ${
+                    questionTimeLeft <= 5 ? 'bg-red-100 animate-pulse' : 'bg-blue-100'
+                  }`}>
+                    <div className="flex items-center justify-center gap-3">
+                      <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                      </svg>
+                      <span className={`text-4xl font-black ${
+                        questionTimeLeft <= 5 ? 'text-red-600' : 'text-blue-600'
+                      }`}>
+                        {questionTimeLeft}
+                      </span>
+                      <span className="text-lg text-gray-600">saniye</span>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-lg mb-4">{currentQuestion.question}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {currentQuestion.options.map((opt, idx) => (
