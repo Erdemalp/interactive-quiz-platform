@@ -1,15 +1,15 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
-const cors = require('cors');
-const { nanoid } = require('nanoid');
-const QRCode = require('qrcode');
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import QRCode from 'qrcode';
+import { nanoid } from 'nanoid';
 
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 
 // CORS ayarları
-const io = socketIo(server, {
+const io = new Server(server, {
   cors: {
     origin: process.env.CLIENT_URL || "http://localhost:5173",
     methods: ["GET", "POST"]
