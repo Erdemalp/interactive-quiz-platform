@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Mentimeter benzeri interaktif soru-cevap platformu",
   "main": "server/index.js",
-  "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "nodemon server/index.js",

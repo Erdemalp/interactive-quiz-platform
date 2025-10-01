@@ -1,9 +1,9 @@
-import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import cors from 'cors';
-import QRCode from 'qrcode';
-import { nanoid } from 'nanoid';
+const express = require('express');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const QRCode = require('qrcode');
+const { nanoid } = require('nanoid');
 
 const app = express();
 const server = createServer(app);
@@ -238,25 +238,7 @@ app.post('/api/session/:code/show-results', (req, res) => {
       }))
       .sort((a, b) => b.totalPoints - a.totalPoints);
 
-    session.participants.forEach(participant => {
-      const playerScore = sessionScores.get(participant.id);
-      if (playerScore) {
-        io.to(participant.socketId).emit('quiz-ended', {
-          myScore: {
-            name: playerScore.name,
-            correctAnswers: playerScore.correctAnswers,
-            wrongAnswers: playerScore.totalAnswered - playerScore.correctAnswers,
-            totalAnswered: playerScore.totalAnswered,
-            totalPoints: playerScore.totalPoints || 0,
-            percentage: playerScore.totalAnswered > 0
-              ? Math.round((playerScore.correctAnswers / playerScore.totalAnswered) * 100)
-              : 0
-          },
-          leaderboard: leaderboard.slice(0, 3),
-          totalQuestions: session.questions.length
-        });
-      }
-    });
+    // Quiz-ended sadece öğretmen "Quiz Sonuçlarını Göster" butonuna bastığında gönderilecek
   }
   res.json({ success: true, message: 'Quiz sonuçları gönderildi' });
 });
