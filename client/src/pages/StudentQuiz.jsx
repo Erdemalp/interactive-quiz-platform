@@ -75,7 +75,7 @@ function StudentQuiz() {
     });
 
     return () => {
-      socket.off('joined-session');
+      socket.off('joined');
       socket.off('question-started');
       socket.off('question-ended');
       socket.off('answer-submitted');
@@ -138,8 +138,10 @@ function StudentQuiz() {
 
   // Quiz bitti - Final Sonuçlar Ekranı
   if (quizEnded && finalStats) {
-    const { myScore, leaderboard } = finalStats;
-    const myRank = leaderboard.findIndex(p => p.name === myScore.name) + 1;
+    const { leaderboard } = finalStats;
+    // myScore artık backend'den gelmiyor, leaderboard'dan kendi skorumuzu bulalım
+    const myScore = leaderboard.find(p => p.name === studentName);
+    const myRank = myScore ? leaderboard.findIndex(p => p.name === studentName) + 1 : 0;
     
     return (
       <div className="min-h-screen p-4 bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50">
@@ -158,10 +160,10 @@ function StudentQuiz() {
             
             {/* Toplam Puan - Büyük Gösterim */}
             <div className="bg-white/30 rounded-2xl p-6 text-center backdrop-blur mb-6">
-              <div className="text-6xl font-black mb-2">⚡ {myScore.totalPoints}</div>
+              <div className="text-6xl font-black mb-2">⚡ {myScore?.totalPoints || 0}</div>
               <div className="text-xl font-bold">TOPLAM PUAN</div>
               <div className="text-sm opacity-90 mt-2">
-                {myScore.correctAnswers > 0 && myScore.totalPoints > myScore.correctAnswers && (
+                {myScore?.correctAnswers > 0 && myScore?.totalPoints > myScore?.correctAnswers && (
                   <span className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full font-bold">
                     🚀 Hızlı Cevap Bonusu Aldın!
                   </span>
@@ -171,19 +173,19 @@ function StudentQuiz() {
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
-                <div className="text-4xl font-black mb-2">{myScore.correctAnswers}</div>
+                <div className="text-4xl font-black mb-2">{myScore?.correctAnswers || 0}</div>
                 <div className="text-sm opacity-90">Doğru</div>
               </div>
               <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
-                <div className="text-4xl font-black mb-2">{myScore.wrongAnswers}</div>
+                <div className="text-4xl font-black mb-2">{myScore?.wrongAnswers || 0}</div>
                 <div className="text-sm opacity-90">Yanlış</div>
               </div>
               <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
-                <div className="text-4xl font-black mb-2">{myScore.totalAnswered}</div>
+                <div className="text-4xl font-black mb-2">{myScore?.totalAnswered || 0}</div>
                 <div className="text-sm opacity-90">Toplam</div>
               </div>
               <div className="bg-white/20 rounded-xl p-4 text-center backdrop-blur">
-                <div className="text-4xl font-black mb-2">%{myScore.percentage}</div>
+                <div className="text-4xl font-black mb-2">%{myScore?.percentage || 0}</div>
                 <div className="text-sm opacity-90">Başarı</div>
               </div>
             </div>
@@ -191,9 +193,9 @@ function StudentQuiz() {
             {/* Başarı Mesajı */}
             <div className="text-center p-4 bg-white/10 rounded-xl backdrop-blur">
               <p className="text-2xl font-bold">
-                {myScore.percentage >= 80 ? '🌟 Muhteşem! Harika bir performans!' :
-                 myScore.percentage >= 60 ? '👏 Güzel! İyi bir sonuç aldın!' :
-                 myScore.percentage >= 40 ? '👍 Fena değil! Daha iyisini yapabilirsin!' :
+                {myScore?.percentage >= 80 ? '🌟 Muhteşem! Harika bir performans!' :
+                 myScore?.percentage >= 60 ? '👏 Güzel! İyi bir sonuç aldın!' :
+                 myScore?.percentage >= 40 ? '👍 Fena değil! Daha iyisini yapabilirsin!' :
                  '💪 Çalışmaya devam et, başarırsın!'}
               </p>
               {myRank > 0 && myRank <= 3 && (
@@ -437,15 +439,18 @@ function StudentQuiz() {
               <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
 
-            {/* Manuel Sonuçları Göster Butonu - Backend implementasyonu eksik */}
+            {/* Manuel Sonuçları Göster Butonu */}
             <div className="mt-6">
               <button
                 onClick={() => {
-                  alert('Bu özellik henüz implementasyonda yok. Öğretmen "Quiz Sonuçlarını Göster" butonuna tıklayarak sonuçları gösterebilir.');
+                  // Tüm sorular sorulmuşsa sonuçları manuel göster
+                  if (session && session.questions && session.questions.length > 0) {
+                    socket.emit('request-quiz-results', { sessionCode });
+                  }
                 }}
-                className="bg-gray-400 text-white px-6 py-3 rounded-lg font-bold cursor-not-allowed"
+                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:shadow-lg transform hover:scale-105 transition"
               >
-                📊 Sonuçları Göster (Yakında)
+                📊 Sonuçları Göster
               </button>
             </div>
           </div>
