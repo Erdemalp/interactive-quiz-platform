@@ -211,12 +211,6 @@ app.post('/api/session/:code/end-question', (req, res) => {
   const results = calculateResults(currentQuestion, session);
   io.to(code).emit('question-ended', results);
   
-  // Eğer son soruysa, quiz bitti ama otomatik sonuç gönderme
-  // Sadece "Quiz Sonuçlarını Göster!" butonuna tıklandığında gönderilecek
-  if (isLastQuestion) {
-    console.log('🎯 Son soru bitti! Quiz sonuçları otomatik gönderilmeyecek');
-  }
-  
   res.json({ success: true, results });
 });
 
