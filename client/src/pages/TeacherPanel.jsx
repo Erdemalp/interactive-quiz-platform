@@ -234,8 +234,8 @@ function TeacherPanel() {
         setQuizMode(false);
         setCurrentQuizIndex(0);
         
-        // Leaderboard'ı göster
-        await loadLeaderboard();
+        // Leaderboard popup'ını açma - sadece öğrencilere sonuçları gönder
+        console.log('✅ Quiz sonuçları öğrencilere gönderildi, popup açılmayacak');
 
         alert('✅ Quiz sonuçları tüm öğrencilere gönderildi!');
       } else {
