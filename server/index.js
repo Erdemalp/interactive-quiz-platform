@@ -481,4 +481,5 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server ${PORT} portunda çalışıyor`);
   console.log(`Client URL: ${process.env.CLIENT_URL || 'http://localhost:5173'}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
