@@ -233,6 +233,9 @@ function TeacherPanel() {
         // Quiz modunu kapat (artık sonuç gösteriliyor)
         setQuizMode(false);
         setCurrentQuizIndex(0);
+        
+        // Leaderboard'ı göster
+        await loadLeaderboard();
 
         alert('✅ Quiz sonuçları tüm öğrencilere gönderildi!');
       } else {
@@ -334,12 +337,9 @@ function TeacherPanel() {
         
         // Quiz modunda ve son soru ise
         if (isLastQuestion) {
-          // Quiz bitti, leaderboard göster
-          setTimeout(() => {
-            loadLeaderboard();
-            setQuizMode(false);
-            setCurrentQuizIndex(0);
-          }, 3000);
+          // Quiz bitti, sadece quiz modunu kapat
+          // Leaderboard'ı otomatik açma - sadece "Quiz Sonuçlarını Göster" butonuna tıklandığında açılsın
+          console.log('🎯 Son soru bitti! Quiz modu aktif kalıyor, leaderboard otomatik açılmayacak');
         }
       }
     } catch (error) {
