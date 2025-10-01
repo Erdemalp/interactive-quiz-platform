@@ -8,6 +8,9 @@ import LeaderboardModal from '../components/LeaderboardModal';
 import QuizHistoryModal from '../components/QuizHistoryModal';
 import { downloadReportAsMarkdown, saveQuizToHistory } from '../utils/questionBank';
 
+// Debug log for environment variables
+console.log('CLIENT_URL:', CLIENT_URL);
+
 const socket = io(SOCKET_URL);
 
 function TeacherPanel() {
